@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(MEMBER)
+  jobTitle  String
+  skills    String[]
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedTasks Task[]          @relation("AssignedTo")
+  createdTasks  Task[]          @relation("CreatedBy")
+  projects      ProjectMember[]
+  comments      Comment[]
+  messages      ChatMessage[]
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+model Project {
+  id                String        @id @default(cuid())
+  name              String
+  description       String?
+  status            ProjectStatus @default(PLANNING)
+  startDate         DateTime
+  targetEndDate     DateTime
+  actualEndDate     DateTime?
+  totalDurationDays Int
+  health            ProjectHealth @default(ON_TRACK)
+  aiAnalysis        Json?
+  voiceNoteUrl      String?
+  transcription     String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tasks        Task[]
+  members      ProjectMember[]
+  chatMessages ChatMessage[]
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectHealth {
+  ON_TRACK
+  AT_RISK
+  DELAYED
+}
+
+model ProjectMember {
+  id        String @id @default(cuid())
+  userId    String
+  projectId String
+  role      String
+
+  user    User    @relation(fields: [userId], references: [id])
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+model Task {
+  id            String       @id @default(cuid())
+  title         String
+  description   String?
+  status        TaskStatus   @default(TODO)
+  priority      TaskPriority @default(MEDIUM)
+  category      String?
+  estimatedDays Int?
+  aiConfidence  String?
+  aiReasoning   String?
+  startDate     DateTime?
+  deadline      DateTime?
+  completedAt   DateTime?
+  bufferDays    Int          @default(0)
+  order         Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  projectId    String
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User    @relation("CreatedBy", fields: [createdById], references: [id])
+
+  dependencies TaskDependency[] @relation("DependentTask")
+  dependents   TaskDependency[] @relation("DependencyTask")
+  comments     Comment[]
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  BLOCKED
+}
+
+enum TaskPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model TaskDependency {
+  id              String @id @default(cuid())
+  taskId          String
+  dependsOnTaskId String
+
+  task      Task @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task @relation("DependencyTask", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  taskId   String
+  task     Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  content   String
+  role      MessageRole
+  createdAt DateTime    @default(now())
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}

@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: monichs
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-monichs}
+      POSTGRES_DB: monichs_pm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monichs"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql://monichs:${DB_PASSWORD:-monichs}@db:5432/monichs_pm
+
+volumes:
+  postgres_data:
