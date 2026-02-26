@@ -12,11 +12,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import {
+  Plus,
+  Trash2,
+  FolderKanban,
+  Clock,
+  ArrowRight,
+} from "lucide-react";
+import {
   getStatusLabel,
-  getHealthEmoji,
   getHealthLabel,
   getHealthColor,
-  formatDate,
+  getHealthBgColor,
   formatDateShort,
 } from "@/lib/utils";
 
@@ -82,11 +88,14 @@ export default function ProgettiPage() {
         message="Qui puoi vedere tutti i tuoi progetti. Clicca su un progetto per vederne i dettagli e gestire le task."
       />
 
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-semibold text-text-primary">Progetti</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold text-text-primary">Progetti</h1>
         {isAdmin && (
           <Link href="/progetti/nuovo">
-            <Button size="lg">+ Nuovo Progetto</Button>
+            <Button className="gap-2">
+              <Plus size={16} />
+              Nuovo Progetto
+            </Button>
           </Link>
         )}
       </div>
@@ -100,12 +109,13 @@ export default function ProgettiPage() {
       ) : projects.length === 0 ? (
         <Card>
           <CardContent className="text-center py-16">
-            <p className="text-xl text-text-secondary mb-2">
+            <FolderKanban size={40} className="mx-auto text-text-muted mb-3" />
+            <p className="text-text-secondary mb-1">
               Non hai ancora nessun progetto.
             </p>
             {isAdmin && (
-              <p className="text-text-muted">
-                Clicca &quot;+ Nuovo Progetto&quot; per crearne uno.
+              <p className="text-text-muted text-sm">
+                Clicca &quot;Nuovo Progetto&quot; per crearne uno.
               </p>
             )}
           </CardContent>
@@ -122,62 +132,64 @@ export default function ProgettiPage() {
             return (
               <Card
                 key={project.id}
-                className="hover:border-gold/50 transition-colors"
+                className="hover:border-gold/40 transition-all group"
               >
-                <CardHeader className="pb-2">
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <Link href={`/progetti/${project.id}`}>
-                      <CardTitle className="text-lg hover:text-gold transition-colors cursor-pointer">
+                      <CardTitle className="text-base hover:text-gold transition-colors cursor-pointer">
                         {project.name}
                       </CardTitle>
                     </Link>
-                    <span title={getHealthLabel(project.health)}>
-                      {getHealthEmoji(project.health)}
-                    </span>
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full ${getHealthBgColor(project.health)}`}
+                      title={getHealthLabel(project.health)}
+                    />
                   </div>
                   {project.description && (
-                    <p className="text-sm text-text-secondary line-clamp-2">
+                    <p className="text-xs text-text-muted line-clamp-2">
                       {project.description}
                     </p>
                   )}
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between mb-3">
-                    <Badge variant="outline">
+                    <Badge variant="outline" className="text-xs">
                       {getStatusLabel(project.status)}
                     </Badge>
                     <span
-                      className={`text-sm font-semibold ${getHealthColor(project.health)}`}
+                      className={`text-xs font-medium ${getHealthColor(project.health)}`}
                     >
                       {getHealthLabel(project.health)}
                     </span>
                   </div>
 
                   <div className="mb-3">
-                    <div className="flex justify-between text-sm text-text-secondary mb-1">
+                    <div className="flex justify-between text-xs text-text-muted mb-1.5">
                       <span>Progresso</span>
                       <span>{percent}%</span>
                     </div>
-                    <div className="w-full bg-background rounded-full h-2">
+                    <div className="w-full bg-background rounded-full h-1.5">
                       <div
-                        className="bg-gold rounded-full h-2 transition-all"
+                        className="bg-gold rounded-full h-1.5 transition-all"
                         style={{ width: `${percent}%` }}
                       />
                     </div>
                   </div>
 
-                  <div className="flex justify-between text-sm text-text-secondary mb-4">
+                  <div className="flex justify-between text-xs text-text-muted mb-4">
                     <span>{done}/{total} task</span>
-                    <span>
-                      {formatDateShort(project.startDate)} →{" "}
-                      {formatDateShort(project.targetEndDate)}
+                    <span className="flex items-center gap-1">
+                      <Clock size={12} />
+                      {formatDateShort(project.startDate)} - {formatDateShort(project.targetEndDate)}
                     </span>
                   </div>
 
                   <div className="flex gap-2">
                     <Link href={`/progetti/${project.id}`} className="flex-1">
-                      <Button variant="secondary" className="w-full" size="sm">
-                        Apri Progetto
+                      <Button variant="secondary" className="w-full gap-1" size="sm">
+                        Apri
+                        <ArrowRight size={14} />
                       </Button>
                     </Link>
                     {isAdmin && (
@@ -185,9 +197,9 @@ export default function ProgettiPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setDeleteId(project.id)}
-                        className="text-danger hover:text-danger"
+                        className="text-text-muted hover:text-danger"
                       >
-                        Elimina
+                        <Trash2 size={14} />
                       </Button>
                     )}
                   </div>
@@ -198,12 +210,10 @@ export default function ProgettiPage() {
         </div>
       )}
 
-      {/* Delete confirmation dialog */}
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
         <DialogTitle>Eliminare questo progetto?</DialogTitle>
         <DialogDescription>
-          Sei sicuro? Questa azione non può essere annullata. Tutte le task e i
-          dati associati verranno eliminati permanentemente.
+          Sei sicuro? Tutte le task e i dati associati verranno eliminati permanentemente.
         </DialogDescription>
         <DialogFooter>
           <Button variant="outline" onClick={() => setDeleteId(null)}>

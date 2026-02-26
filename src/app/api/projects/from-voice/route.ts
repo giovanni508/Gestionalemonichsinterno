@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File;
     const durationDays = parseInt(formData.get("durationDays") as string) || 30;
+    const bottlenecks = (formData.get("bottlenecks") as string) || "";
 
     if (!audioFile) {
       return NextResponse.json(
@@ -22,7 +23,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check file size (25MB max)
     if (audioFile.size > 25 * 1024 * 1024) {
       return NextResponse.json(
         { error: "Il file audio non può superare i 25MB" },
@@ -30,11 +30,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Transcribe audio
     const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
     const transcription = await transcribeAudio(audioBuffer, audioFile.name);
 
-    // Get team members
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -52,12 +50,17 @@ export async function POST(req: NextRequest) {
       )
       .join("\n");
 
+    const bottleneckSection = bottlenecks
+      ? `\n\nCOLLI DI BOTTIGLIA ESTERNI SEGNALATI DALL'UTENTE:\n${bottlenecks}\n\nDevi tenere conto di questi vincoli esterni nella pianificazione delle task e nelle stime dei tempi. Aggiungi buffer adeguati e segnalali esplicitamente nei rischi.`
+      : `\n\nCHIEDI PROATTIVAMENTE: Analizza il progetto e identifica possibili colli di bottiglia esterni (fornitori, approvazioni, tempi di spedizione, certificazioni, ecc.) e includili nella sezione "risks" e "bottlenecks".`;
+
     const systemPrompt = `Sei un project manager esperto nel settore orologiero (Swiss Made, microbrand di lusso). Ti viene fornita la trascrizione di una nota vocale dell'amministratore di Monichs.
 
 Il team è composto da:
 ${teamDescription}
 
 Il progetto ha una durata complessiva stimata di: ${durationDays} giorni.
+${bottleneckSection}
 
 Analizza la nota vocale e restituisci SOLO un JSON valido (senza markdown, senza \`\`\`) strutturato così:
 {
@@ -76,7 +79,8 @@ Analizza la nota vocale e restituisci SOLO un JSON valido (senza markdown, senza
     }
   ],
   "suggested_timeline": "Spiegazione della timeline proposta",
-  "risks": ["Lista di potenziali rischi identificati"]
+  "risks": ["Lista di potenziali rischi identificati"],
+  "bottlenecks": ["Lista di colli di bottiglia esterni identificati o segnalati"]
 }
 
 Regole:
@@ -85,7 +89,8 @@ Regole:
 - Ordina le task rispettando le dipendenze logiche
 - Stima i giorni in modo realistico per un team piccolo
 - Identifica task che possono essere parallelizzate
-- I valori di priority devono essere esattamente: CRITICAL, HIGH, MEDIUM, o LOW (maiuscolo)`;
+- I valori di priority devono essere esattamente: CRITICAL, HIGH, MEDIUM, o LOW (maiuscolo)
+- IMPORTANTE: Identifica proattivamente colli di bottiglia esterni (fornitori, certificazioni, approvazioni terze parti, tempi di spedizione) e includili sia nei rischi che nella sezione bottlenecks`;
 
     const aiResponse = await callClaude(
       systemPrompt,
@@ -93,10 +98,8 @@ Regole:
       8192
     );
 
-    // Parse the AI response
     let projectData;
     try {
-      // Try to extract JSON from response
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         projectData = JSON.parse(jsonMatch[0]);
@@ -113,14 +116,12 @@ Regole:
       );
     }
 
-    // Map user names to IDs
     const userMap = new Map(users.map((u) => [u.name.toLowerCase(), u.id]));
 
     const tasksWithIds = projectData.tasks.map((task: any, index: number) => {
       const assignedName = task.assigned_to?.toLowerCase() || "";
       let assignedToId = null;
 
-      // Try exact match first, then partial match
       for (const [name, id] of userMap) {
         if (
           name === assignedName ||
@@ -132,7 +133,6 @@ Regole:
         }
       }
 
-      // Try matching by first name
       if (!assignedToId) {
         const firstName = assignedName.split(" ")[0];
         for (const [name, id] of userMap) {
@@ -157,7 +157,8 @@ Regole:
         description: projectData.project_description,
         totalDurationDays: durationDays,
         suggestedTimeline: projectData.suggested_timeline,
-        risks: projectData.risks,
+        risks: [...(projectData.risks || []), ...(projectData.bottlenecks || [])],
+        bottlenecks: projectData.bottlenecks || [],
       },
       tasks: tasksWithIds,
       users: users.map((u) => ({

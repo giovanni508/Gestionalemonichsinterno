@@ -11,6 +11,18 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import Link from "next/link";
+import {
+  FileEdit,
+  Mic,
+  ArrowLeft,
+  Upload,
+  Square,
+  HelpCircle,
+  AlertTriangle,
+  Plus,
+  X,
+  Trash2,
+} from "lucide-react";
 
 type Mode = "choose" | "manual" | "voice" | "review";
 
@@ -33,6 +45,7 @@ interface ReviewData {
     totalDurationDays: number;
     suggestedTimeline: string;
     risks: string[];
+    bottlenecks: string[];
   };
   tasks: ReviewTask[];
   users: { id: string; name: string; jobTitle: string }[];
@@ -50,12 +63,14 @@ export default function NuovoProgettoPage() {
     new Date().toISOString().split("T")[0]
   );
   const [durationDays, setDurationDays] = useState(30);
+  const [bottlenecks, setBottlenecks] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
 
   // Voice state
   const [isRecording, setIsRecording] = useState(false);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [voiceDuration, setVoiceDuration] = useState(30);
+  const [voiceBottlenecks, setVoiceBottlenecks] = useState("");
   const [voiceLoading, setVoiceLoading] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -76,7 +91,7 @@ export default function NuovoProgettoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          description,
+          description: description + (bottlenecks ? `\n\nColli di bottiglia esterni: ${bottlenecks}` : ""),
           startDate,
           targetEndDate: endDate.toISOString(),
           totalDurationDays: durationDays,
@@ -162,6 +177,9 @@ export default function NuovoProgettoPage() {
       const formData = new FormData();
       formData.append("audio", audioFile);
       formData.append("durationDays", voiceDuration.toString());
+      if (voiceBottlenecks.trim()) {
+        formData.append("bottlenecks", voiceBottlenecks.trim());
+      }
 
       const res = await fetch("/api/projects/from-voice", {
         method: "POST",
@@ -172,7 +190,7 @@ export default function NuovoProgettoPage() {
         const data = await res.json();
         setReviewData(data);
         setMode("review");
-        addToast("Progetto generato dall'AI! Controlla i dettagli.");
+        addToast("Progetto generato! Controlla i dettagli.");
       } else {
         const data = await res.json();
         addToast(data.error || "Errore nell'elaborazione", "error");
@@ -193,7 +211,6 @@ export default function NuovoProgettoPage() {
     endDate.setDate(endDate.getDate() + reviewData.project.totalDurationDays);
 
     try {
-      // Create the project
       const projectRes = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -209,7 +226,6 @@ export default function NuovoProgettoPage() {
       if (!projectRes.ok) throw new Error("Failed to create project");
       const project = await projectRes.json();
 
-      // Create all tasks
       for (const task of reviewData.tasks) {
         await fetch(`/api/projects/${project.id}/tasks`, {
           method: "POST",
@@ -239,46 +255,42 @@ export default function NuovoProgettoPage() {
   if (mode === "choose") {
     return (
       <AuthLayout>
-        <h1 className="text-3xl font-semibold text-text-primary mb-8">
+        <h1 className="text-2xl font-semibold text-text-primary mb-6">
           Nuovo Progetto
         </h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
           <Card
-            className="cursor-pointer hover:border-gold/50 transition-colors"
+            className="cursor-pointer hover:border-gold/40 transition-all group"
             onClick={() => setMode("manual")}
           >
-            <CardContent className="text-center py-12">
-              <span className="text-5xl mb-4 block">📝</span>
-              <h2 className="text-xl font-semibold text-text-primary mb-2">
+            <CardContent className="text-center py-10">
+              <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-gold/20 transition-colors">
+                <FileEdit size={24} className="text-gold" />
+              </div>
+              <h2 className="text-base font-semibold text-text-primary mb-1">
                 Crea manualmente
               </h2>
-              <p className="text-base text-text-secondary">
-                Inserisci i dettagli del progetto e aggiungi le task una alla
-                volta
+              <p className="text-sm text-text-muted">
+                Inserisci i dettagli e aggiungi le task una alla volta
               </p>
             </CardContent>
           </Card>
 
           <Card
-            className="cursor-pointer hover:border-gold/50 transition-colors"
+            className="cursor-pointer hover:border-gold/40 transition-all group"
             onClick={() => setMode("voice")}
           >
-            <CardContent className="text-center py-12">
-              <span className="text-5xl mb-4 block">🎤</span>
-              <h2 className="text-xl font-semibold text-text-primary mb-2">
+            <CardContent className="text-center py-10">
+              <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-gold/20 transition-colors">
+                <Mic size={24} className="text-gold" />
+              </div>
+              <h2 className="text-base font-semibold text-text-primary mb-1">
                 Crea da nota vocale
               </h2>
-              <p className="text-base text-text-secondary">
-                Registra o carica un audio e l&apos;AI creerà il progetto per te
+              <p className="text-sm text-text-muted">
+                Registra un audio e l&apos;AI creer&agrave; il progetto per te
               </p>
-              <Link
-                href="/guida#nota-vocale"
-                className="inline-flex items-center gap-1 text-sm text-gold mt-2 hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                ? Come funziona
-              </Link>
             </CardContent>
           </Card>
         </div>
@@ -290,20 +302,20 @@ export default function NuovoProgettoPage() {
   if (mode === "manual") {
     return (
       <AuthLayout>
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => setMode("choose")}>
-            ← Indietro
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="sm" onClick={() => setMode("choose")}>
+            <ArrowLeft size={16} />
           </Button>
-          <h1 className="text-3xl font-semibold text-text-primary">
+          <h1 className="text-2xl font-semibold text-text-primary">
             Crea Progetto Manualmente
           </h1>
         </div>
 
         <Card className="max-w-2xl">
           <CardContent>
-            <form onSubmit={handleManualSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-base font-semibold text-text-primary">
+            <form onSubmit={handleManualSubmit} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">
                   Nome del Progetto
                 </label>
                 <Input
@@ -314,8 +326,8 @@ export default function NuovoProgettoPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-base font-semibold text-text-primary">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-primary">
                   Descrizione
                 </label>
                 <Textarea
@@ -326,8 +338,8 @@ export default function NuovoProgettoPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-base font-semibold text-text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">
                     Data di Inizio
                   </label>
                   <Input
@@ -337,8 +349,8 @@ export default function NuovoProgettoPage() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-base font-semibold text-text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">
                     Durata (giorni)
                   </label>
                   <Input
@@ -351,6 +363,23 @@ export default function NuovoProgettoPage() {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Bottlenecks section */}
+              <div className="space-y-1.5 bg-card-hover rounded-lg p-4 border border-border">
+                <label className="text-sm font-medium text-text-primary flex items-center gap-2">
+                  <AlertTriangle size={14} className="text-yellow-500" />
+                  Colli di bottiglia esterni
+                </label>
+                <p className="text-xs text-text-muted mb-2">
+                  Ci sono vincoli o dipendenze esterne che non dipendono dal team? (es. fornitori, approvazioni, materiali)
+                </p>
+                <Textarea
+                  value={bottlenecks}
+                  onChange={(e) => setBottlenecks(e.target.value)}
+                  placeholder="Es. Attesa approvazione fornitore casse, tempi di spedizione dalla Svizzera..."
+                  className="min-h-[80px]"
+                />
               </div>
 
               <Button
@@ -372,28 +401,27 @@ export default function NuovoProgettoPage() {
   if (mode === "voice") {
     return (
       <AuthLayout>
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => setMode("choose")}>
-            ← Indietro
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="sm" onClick={() => setMode("choose")}>
+            <ArrowLeft size={16} />
           </Button>
-          <h1 className="text-3xl font-semibold text-text-primary">
-            Crea Progetto da Nota Vocale
+          <h1 className="text-2xl font-semibold text-text-primary">
+            Crea da Nota Vocale
           </h1>
           <Link
             href="/guida#nota-vocale"
-            className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:text-gold hover:border-gold transition-colors"
+            className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-text-muted hover:text-gold hover:border-gold transition-colors"
             title="Come funziona?"
           >
-            ?
+            <HelpCircle size={14} />
           </Link>
         </div>
 
         <Card className="max-w-2xl">
-          <CardContent className="space-y-6">
-            {/* Duration setting */}
-            <div className="space-y-2">
-              <label className="text-base font-semibold text-text-primary">
-                Durata prevista del progetto (giorni)
+          <CardContent className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-text-primary">
+                Durata prevista (giorni)
               </label>
               <Input
                 type="number"
@@ -403,24 +431,38 @@ export default function NuovoProgettoPage() {
                 }
                 min={1}
               />
-              <p className="text-sm text-text-secondary">
-                L&apos;AI userà questo dato per stimare le deadline delle task
+            </div>
+
+            {/* Bottlenecks */}
+            <div className="space-y-1.5 bg-card-hover rounded-lg p-4 border border-border">
+              <label className="text-sm font-medium text-text-primary flex items-center gap-2">
+                <AlertTriangle size={14} className="text-yellow-500" />
+                Colli di bottiglia esterni
+              </label>
+              <p className="text-xs text-text-muted mb-2">
+                Segnala vincoli esterni che l&apos;AI dovr&agrave; considerare nella pianificazione
               </p>
+              <Textarea
+                value={voiceBottlenecks}
+                onChange={(e) => setVoiceBottlenecks(e.target.value)}
+                placeholder="Es. Attesa materiali dal fornitore, deadline ente certificatore..."
+                className="min-h-[60px]"
+              />
             </div>
 
             {/* Recording */}
-            <div className="text-center py-8">
+            <div className="text-center py-6">
               {!isRecording && !audioFile && (
                 <>
                   <button
                     onClick={startRecording}
-                    className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center mx-auto mb-4"
+                    className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center mx-auto mb-3"
                     title="Clicca per registrare"
                   >
-                    <span className="text-white text-3xl">🎤</span>
+                    <Mic size={28} className="text-white" />
                   </button>
-                  <p className="text-text-secondary mb-6">
-                    Clicca per registrare la tua nota vocale
+                  <p className="text-sm text-text-muted">
+                    Clicca per registrare
                   </p>
                 </>
               )}
@@ -429,30 +471,30 @@ export default function NuovoProgettoPage() {
                 <>
                   <button
                     onClick={stopRecording}
-                    className="w-20 h-20 rounded-full bg-red-600 animate-pulse flex items-center justify-center mx-auto mb-4"
+                    className="w-16 h-16 rounded-full bg-red-600 animate-pulse flex items-center justify-center mx-auto mb-3"
                     title="Clicca per fermare"
                   >
-                    <span className="text-white text-3xl">⏹</span>
+                    <Square size={24} className="text-white" />
                   </button>
-                  <p className="text-red-400 font-semibold mb-6">
-                    Registrazione in corso... Clicca per fermare
+                  <p className="text-red-400 text-sm font-medium">
+                    Registrazione in corso...
                   </p>
                 </>
               )}
 
               {audioFile && !isRecording && (
-                <div className="bg-card-hover rounded-lg p-4 mb-4">
-                  <p className="text-text-primary font-semibold">
+                <div className="bg-card-hover rounded-lg p-4">
+                  <p className="text-sm font-medium text-text-primary">
                     Audio pronto: {audioFile.name}
                   </p>
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-xs text-text-muted">
                     {(audioFile.size / 1024 / 1024).toFixed(1)} MB
                   </p>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setAudioFile(null)}
-                    className="mt-2"
+                    className="mt-2 text-xs"
                   >
                     Rimuovi e riprova
                   </Button>
@@ -465,13 +507,14 @@ export default function NuovoProgettoPage() {
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleFileDrop}
-                className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-gold/50 transition-colors"
+                className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-gold/40 transition-colors"
               >
-                <p className="text-text-secondary mb-2">
+                <Upload size={20} className="mx-auto text-text-muted mb-2" />
+                <p className="text-sm text-text-muted mb-1">
                   Oppure trascina qui un file audio
                 </p>
-                <p className="text-sm text-text-muted mb-4">
-                  Formati supportati: .webm, .mp3, .m4a, .wav (max 25MB)
+                <p className="text-xs text-text-muted mb-3">
+                  .webm, .mp3, .m4a, .wav (max 25MB)
                 </p>
                 <label className="cursor-pointer">
                   <input
@@ -480,14 +523,13 @@ export default function NuovoProgettoPage() {
                     onChange={handleFileSelect}
                     className="hidden"
                   />
-                  <Button variant="outline" type="button" asChild>
-                    <span>Scegli File</span>
-                  </Button>
+                  <span className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium border border-border bg-transparent text-text-primary hover:bg-card hover:border-gold h-9 px-4 cursor-pointer transition-colors">
+                    Scegli File
+                  </span>
                 </label>
               </div>
             )}
 
-            {/* Submit */}
             {audioFile && (
               <Button
                 size="lg"
@@ -496,7 +538,7 @@ export default function NuovoProgettoPage() {
                 disabled={voiceLoading}
               >
                 {voiceLoading
-                  ? "L'AI sta analizzando... Attendi qualche secondo"
+                  ? "L'AI sta analizzando..."
                   : "Invia e Genera Progetto"}
               </Button>
             )}
@@ -510,35 +552,35 @@ export default function NuovoProgettoPage() {
   if (mode === "review" && reviewData) {
     return (
       <AuthLayout>
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => setMode("voice")}>
-            ← Indietro
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="sm" onClick={() => setMode("voice")}>
+            <ArrowLeft size={16} />
           </Button>
-          <h1 className="text-3xl font-semibold text-text-primary">
-            Anteprima Progetto Generato
+          <h1 className="text-2xl font-semibold text-text-primary">
+            Anteprima Progetto
           </h1>
         </div>
 
         {/* Transcription */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Trascrizione della nota vocale</CardTitle>
+        <Card className="mb-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Trascrizione</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-text-secondary italic">
+            <p className="text-sm text-text-secondary italic">
               &quot;{reviewData.transcription}&quot;
             </p>
           </CardContent>
         </Card>
 
         {/* Project Details */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Dettagli Progetto</CardTitle>
+        <Card className="mb-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Dettagli Progetto</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             <div>
-              <label className="text-sm text-text-secondary">Nome</label>
+              <label className="text-xs text-text-muted">Nome</label>
               <Input
                 value={reviewData.project.name}
                 onChange={(e) =>
@@ -550,36 +592,32 @@ export default function NuovoProgettoPage() {
               />
             </div>
             <div>
-              <label className="text-sm text-text-secondary">Descrizione</label>
+              <label className="text-xs text-text-muted">Descrizione</label>
               <Textarea
                 value={reviewData.project.description}
                 onChange={(e) =>
                   setReviewData({
                     ...reviewData,
-                    project: {
-                      ...reviewData.project,
-                      description: e.target.value,
-                    },
+                    project: { ...reviewData.project, description: e.target.value },
                   })
                 }
               />
             </div>
             {reviewData.project.suggestedTimeline && (
               <div>
-                <label className="text-sm text-text-secondary">
-                  Timeline Suggerita dall&apos;AI
-                </label>
-                <p className="text-text-primary mt-1">
+                <label className="text-xs text-text-muted">Timeline Suggerita</label>
+                <p className="text-sm text-text-primary mt-1">
                   {reviewData.project.suggestedTimeline}
                 </p>
               </div>
             )}
             {reviewData.project.risks && reviewData.project.risks.length > 0 && (
               <div>
-                <label className="text-sm text-text-secondary">
-                  Rischi Identificati
+                <label className="text-xs text-text-muted flex items-center gap-1">
+                  <AlertTriangle size={12} className="text-yellow-500" />
+                  Rischi e Colli di Bottiglia
                 </label>
-                <ul className="list-disc list-inside text-text-primary mt-1 space-y-1">
+                <ul className="list-disc list-inside text-sm text-text-primary mt-1 space-y-1">
                   {reviewData.project.risks.map((risk, i) => (
                     <li key={i}>{risk}</li>
                   ))}
@@ -591,14 +629,15 @@ export default function NuovoProgettoPage() {
 
         {/* Tasks */}
         <Card className="mb-6">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle>
-                Task Generate ({reviewData.tasks.length})
+              <CardTitle className="text-sm">
+                Task ({reviewData.tasks.length})
               </CardTitle>
               <Button
                 variant="outline"
                 size="sm"
+                className="gap-1"
                 onClick={() =>
                   setReviewData({
                     ...reviewData,
@@ -618,27 +657,25 @@ export default function NuovoProgettoPage() {
                   })
                 }
               >
-                + Aggiungi Task
+                <Plus size={14} />
+                Aggiungi
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {reviewData.tasks.map((task, index) => (
                 <div
                   key={index}
-                  className="border border-border rounded-lg p-4 space-y-3"
+                  className="border border-border rounded-lg p-3 space-y-3"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 space-y-2">
                       <Input
                         value={task.title}
                         onChange={(e) => {
                           const updated = [...reviewData.tasks];
-                          updated[index] = {
-                            ...updated[index],
-                            title: e.target.value,
-                          };
+                          updated[index] = { ...updated[index], title: e.target.value };
                           setReviewData({ ...reviewData, tasks: updated });
                         }}
                         placeholder="Titolo task"
@@ -647,24 +684,18 @@ export default function NuovoProgettoPage() {
                         value={task.description}
                         onChange={(e) => {
                           const updated = [...reviewData.tasks];
-                          updated[index] = {
-                            ...updated[index],
-                            description: e.target.value,
-                          };
+                          updated[index] = { ...updated[index], description: e.target.value };
                           setReviewData({ ...reviewData, tasks: updated });
                         }}
                         placeholder="Descrizione"
-                        className="min-h-[60px]"
+                        className="min-h-[50px]"
                       />
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-3 gap-2">
                         <Select
                           value={task.assignedToId || ""}
                           onChange={(e) => {
                             const updated = [...reviewData.tasks];
-                            updated[index] = {
-                              ...updated[index],
-                              assignedToId: e.target.value || null,
-                            };
+                            updated[index] = { ...updated[index], assignedToId: e.target.value || null };
                             setReviewData({ ...reviewData, tasks: updated });
                           }}
                           options={[
@@ -679,10 +710,7 @@ export default function NuovoProgettoPage() {
                           value={task.priority}
                           onChange={(e) => {
                             const updated = [...reviewData.tasks];
-                            updated[index] = {
-                              ...updated[index],
-                              priority: e.target.value,
-                            };
+                            updated[index] = { ...updated[index], priority: e.target.value };
                             setReviewData({ ...reviewData, tasks: updated });
                           }}
                           options={[
@@ -697,34 +725,24 @@ export default function NuovoProgettoPage() {
                           value={task.estimated_days}
                           onChange={(e) => {
                             const updated = [...reviewData.tasks];
-                            updated[index] = {
-                              ...updated[index],
-                              estimated_days: parseInt(e.target.value) || 1,
-                            };
+                            updated[index] = { ...updated[index], estimated_days: parseInt(e.target.value) || 1 };
                             setReviewData({ ...reviewData, tasks: updated });
                           }}
                           min={1}
                           placeholder="Giorni"
                         />
                       </div>
-                      {task.assignment_reasoning && (
-                        <p className="text-sm text-text-muted italic">
-                          Motivazione AI: {task.assignment_reasoning}
-                        </p>
-                      )}
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="ml-2 text-danger"
+                      className="text-text-muted hover:text-danger shrink-0"
                       onClick={() => {
-                        const updated = reviewData.tasks.filter(
-                          (_, i) => i !== index
-                        );
+                        const updated = reviewData.tasks.filter((_, i) => i !== index);
                         setReviewData({ ...reviewData, tasks: updated });
                       }}
                     >
-                      ✕
+                      <Trash2 size={14} />
                     </Button>
                   </div>
                 </div>
@@ -733,8 +751,7 @@ export default function NuovoProgettoPage() {
           </CardContent>
         </Card>
 
-        {/* Confirm */}
-        <div className="flex gap-4 max-w-2xl">
+        <div className="flex gap-3 max-w-2xl">
           <Button
             variant="outline"
             size="lg"
@@ -749,9 +766,7 @@ export default function NuovoProgettoPage() {
             disabled={manualLoading}
             className="flex-1"
           >
-            {manualLoading
-              ? "Creazione in corso..."
-              : "Conferma e Crea Progetto"}
+            {manualLoading ? "Creazione..." : "Conferma e Crea Progetto"}
           </Button>
         </div>
       </AuthLayout>

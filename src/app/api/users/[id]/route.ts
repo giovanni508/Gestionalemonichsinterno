@@ -55,3 +55,54 @@ export async function PUT(
     );
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || (session.user as any).role !== "ADMIN") {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+    }
+
+    // Prevent self-deletion
+    if ((session.user as any).id === params.id) {
+      return NextResponse.json(
+        { error: "Non puoi eliminare il tuo stesso account" },
+        { status: 400 }
+      );
+    }
+
+    // Unassign tasks before deleting user
+    await prisma.task.updateMany({
+      where: { assignedToId: params.id },
+      data: { assignedToId: null },
+    });
+
+    // Remove from project memberships
+    await prisma.projectMember.deleteMany({
+      where: { userId: params.id },
+    });
+
+    // Delete user comments
+    await prisma.comment.deleteMany({
+      where: { authorId: params.id },
+    });
+
+    // Delete chat messages
+    await prisma.chatMessage.deleteMany({
+      where: { userId: params.id },
+    });
+
+    await prisma.user.delete({ where: { id: params.id } });
+
+    return NextResponse.json({ message: "Utente rimosso con successo" });
+  } catch (error: any) {
+    console.error("[User Delete Error]", error);
+    return NextResponse.json(
+      { error: "Errore nella rimozione dell'utente" },
+      { status: 500 }
+    );
+  }
+}

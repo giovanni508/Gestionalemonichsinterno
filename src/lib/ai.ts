@@ -125,7 +125,8 @@ export async function transcribeAudio(audioBuffer: Buffer, filename: string): Pr
 
   try {
     const formData = new FormData();
-    const blob = new Blob([audioBuffer], { type: "audio/webm" });
+    const uint8 = new Uint8Array(audioBuffer);
+    const blob = new Blob([uint8], { type: "audio/webm" });
     formData.append("file", blob, filename);
     formData.append("model", "whisper-1");
     formData.append("language", "it");

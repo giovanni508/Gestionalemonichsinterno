@@ -85,11 +85,11 @@ export function getHealthLabel(health: string): string {
   return labels[health] || health;
 }
 
-export function getHealthEmoji(health: string): string {
-  const emojis: Record<string, string> = {
-    ON_TRACK: "🟢",
-    AT_RISK: "🟡",
-    DELAYED: "🔴",
+export function getHealthBgColor(health: string): string {
+  const colors: Record<string, string> = {
+    ON_TRACK: "bg-green-500",
+    AT_RISK: "bg-yellow-500",
+    DELAYED: "bg-red-500",
   };
-  return emojis[health] || "⚪";
+  return colors[health] || "bg-gray-500";
 }

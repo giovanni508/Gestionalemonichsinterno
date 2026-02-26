@@ -42,7 +42,7 @@ export default function AuthLayout({
         userRole={(session.user as any).role}
         userName={session.user.name || ""}
       />
-      <main className="lg:pl-64 pb-20 lg:pb-0">
+      <main className="lg:pl-[260px] pb-20 lg:pb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <Breadcrumb />
           {children}

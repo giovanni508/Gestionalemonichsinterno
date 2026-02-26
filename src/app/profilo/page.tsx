@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
+import { useTheme } from "@/components/ThemeProvider";
+import { LogOut, Sun, Moon, Shield } from "lucide-react";
 
 export default function ProfiloPage() {
   const { data: session } = useSession();
   const { addToast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   const [name, setName] = useState(session?.user?.name || "");
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -35,7 +37,6 @@ export default function ProfiloPage() {
 
       if (res.ok) {
         addToast("Profilo aggiornato con successo!");
-        setCurrentPassword("");
         setNewPassword("");
       } else {
         const data = await res.json();
@@ -50,19 +51,18 @@ export default function ProfiloPage() {
 
   return (
     <AuthLayout>
-      <h1 className="text-3xl font-semibold text-text-primary mb-8">
+      <h1 className="text-2xl font-semibold text-text-primary mb-6">
         Profilo
       </h1>
 
-      <div className="max-w-2xl space-y-6">
-        {/* Profile Info */}
+      <div className="max-w-2xl space-y-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Le tue informazioni</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Le tue informazioni</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-20 h-20 rounded-full bg-gold/20 flex items-center justify-center text-gold font-semibold text-2xl">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 rounded-full bg-gold/15 flex items-center justify-center text-gold font-semibold text-xl">
                 {(session?.user?.name || "")
                   .split(" ")
                   .map((n) => n[0])
@@ -70,42 +70,37 @@ export default function ProfiloPage() {
                   .toUpperCase()}
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-text-primary">
+                <h2 className="text-lg font-semibold text-text-primary">
                   {session?.user?.name}
                 </h2>
-                <p className="text-text-secondary">
+                <p className="text-sm text-text-muted">
                   {(session?.user as any)?.jobTitle}
                 </p>
                 <Badge
                   variant={
-                    (session?.user as any)?.role === "ADMIN"
-                      ? "default"
-                      : "outline"
+                    (session?.user as any)?.role === "ADMIN" ? "default" : "outline"
                   }
-                  className="mt-1"
+                  className="mt-1 text-xs"
                 >
-                  {(session?.user as any)?.role === "ADMIN"
-                    ? "Amministratore"
-                    : "Membro"}
+                  <Shield size={10} className="mr-1" />
+                  {(session?.user as any)?.role === "ADMIN" ? "Admin" : "Membro"}
                 </Badge>
               </div>
             </div>
-
-            <p className="text-text-secondary">
+            <p className="text-sm text-text-muted">
               Email: {session?.user?.email}
             </p>
           </CardContent>
         </Card>
 
-        {/* Edit Profile */}
         <Card>
-          <CardHeader>
-            <CardTitle>Modifica Profilo</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Modifica Profilo</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
-                <label className="text-base font-semibold text-text-primary">
+                <label className="text-sm font-medium text-text-primary">
                   Nome
                 </label>
                 <Input
@@ -116,23 +111,16 @@ export default function ProfiloPage() {
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="text-base font-semibold text-text-primary mb-3">
+                <h3 className="text-sm font-medium text-text-primary mb-3">
                   Cambia Password
                 </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm text-text-secondary">
-                      Nuova Password
-                    </label>
-                    <Input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Lascia vuoto per non cambiare"
-                      minLength={6}
-                    />
-                  </div>
-                </div>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Lascia vuoto per non cambiare"
+                  minLength={6}
+                />
               </div>
 
               <Button type="submit" disabled={saving}>
@@ -142,13 +130,34 @@ export default function ProfiloPage() {
           </CardContent>
         </Card>
 
-        {/* Logout */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Preferenze</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Tema</p>
+                <p className="text-xs text-text-muted">
+                  {theme === "dark" ? "Tema scuro attivo" : "Tema chiaro attivo"}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={toggleTheme} className="gap-2">
+                {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+                {theme === "dark" ? "Chiaro" : "Scuro"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent>
             <Button
               variant="destructive"
               onClick={() => signOut({ callbackUrl: "/login" })}
+              className="gap-2"
             >
+              <LogOut size={16} />
               Esci dall&apos;Account
             </Button>
           </CardContent>
