@@ -41,6 +41,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject]);
 
   useEffect(() => {
